@@ -1,0 +1,280 @@
+name: Create Log
+description: "Create log entries from PR content for VERSION file(s)."
+
+inputs:
+  pr_number:
+    description: "Pull request number used to read body and changed files."
+    required: false
+  github_token:
+    description: "GitHub token for API access (defaults to GITHUB_TOKEN)."
+    required: false
+  version_file:
+    description: "Preferred VERSION file path (optional)."
+    required: false
+  release_version:
+    description: "Deprecated. Version is read from VERSION file(s)."
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Ensure GitHub CLI is authenticated
+      shell: bash
+      run: |
+        set -e
+        if [ -n "${{ inputs.github_token }}" ]; then
+          export GH_TOKEN="${{ inputs.github_token }}"
+        elif [ -z "${GH_TOKEN:-}" ] && [ -n "${GITHUB_TOKEN:-}" ]; then
+          export GH_TOKEN="$GITHUB_TOKEN"
+        fi
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "Missing GH_TOKEN/GITHUB_TOKEN for GitHub CLI."
+          exit 1
+        fi
+        gh auth status || gh auth login --with-token <<< "$GH_TOKEN"
+
+    - name: Create log files
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        repo="${GITHUB_REPOSITORY}"
+        pr_number="${{ inputs.pr_number }}"
+
+        if [ -z "$pr_number" ] && [ -n "${GITHUB_EVENT_PATH:-}" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
+          pr_number=$(jq -r '.pull_request.number // .workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
+          if [ -z "$pr_number" ]; then
+            sha=$(jq -r '.workflow_run.head_sha // .after // empty' "$GITHUB_EVENT_PATH")
+            if [ -n "$sha" ]; then
+              pr_number=$(gh api "repos/${repo}/commits/${sha}/pulls" --jq '.[0].number')
+            fi
+          fi
+        fi
+
+        if [ -z "$pr_number" ]; then
+          echo "pr_number is required to read PR content and changed files."
+          exit 1
+        fi
+
+        pr_body_file=$(mktemp)
+        gh pr view "$pr_number" --json body --jq '.body // ""' > "$pr_body_file"
+
+        pr_info=$(gh pr view "$pr_number" --json title,url,author,labels,mergedAt,mergeCommit,additions,deletions,changedFiles)
+        pr_title=$(jq -r '.title // ""' <<< "$pr_info")
+        pr_url=$(jq -r '.url // ""' <<< "$pr_info")
+        pr_author=$(jq -r '.author.login // ""' <<< "$pr_info")
+        pr_merged_at=$(jq -r '.mergedAt // ""' <<< "$pr_info")
+        pr_merge_commit=$(jq -r '.mergeCommit.oid // ""' <<< "$pr_info")
+        pr_labels=$(jq -r '.labels[].name' <<< "$pr_info" | paste -sd ", " -)
+        pr_changed_files=$(jq -r '.changedFiles // 0' <<< "$pr_info")
+        pr_additions=$(jq -r '.additions // 0' <<< "$pr_info")
+        pr_deletions=$(jq -r '.deletions // 0' <<< "$pr_info")
+
+        if [ -z "$pr_title" ]; then
+          pr_title="PR #${pr_number}"
+        fi
+        if [ -z "$pr_url" ]; then
+          pr_url="https://github.com/${repo}/pull/${pr_number}"
+        fi
+        if [ -z "$pr_labels" ]; then
+          pr_labels="(none)"
+        fi
+        if [ -z "$pr_author" ] || [ "$pr_author" = "null" ]; then
+          pr_author="(unknown)"
+        else
+          pr_author="@${pr_author}"
+        fi
+        if [ -z "$pr_merged_at" ] || [ "$pr_merged_at" = "null" ]; then
+          pr_merged_at="Not merged"
+        fi
+        if [ -z "$pr_merge_commit" ] || [ "$pr_merge_commit" = "null" ]; then
+          pr_merge_commit="(none)"
+        fi
+        merge_commit_display="$pr_merge_commit"
+        if [ "$pr_merge_commit" != "(none)" ]; then
+          short_commit="${pr_merge_commit:0:7}"
+          merge_commit_display=$(printf '`%s`' "$short_commit")
+        fi
+
+        approved_reviewers=$(gh api "repos/${repo}/pulls/${pr_number}/reviews" --jq '.[] | select(.state=="APPROVED") | .user.login' | sort -u | paste -sd ", " -)
+        if [ -z "$approved_reviewers" ]; then
+          reviewers_display="(none)"
+        else
+          reviewers_display="@${approved_reviewers//, /, @}"
+        fi
+
+        details_file=$(mktemp)
+        cat > "$details_file" <<EOF
+        ---
+
+        - Author: ${pr_author}
+        - Merge commit: ${merge_commit_display}
+        - Reviewers: ${reviewers_display}
+        - Files changed: ${pr_changed_files} (+${pr_additions} / -${pr_deletions})
+        EOF
+
+        pr_body_enriched=$(mktemp)
+        PR_BODY_FILE="$pr_body_file" DETAILS_FILE="$details_file" PR_BODY_ENRICHED="$pr_body_enriched" python - <<'PY'
+        import os
+
+        body_path = os.environ["PR_BODY_FILE"]
+        details_path = os.environ["DETAILS_FILE"]
+        output_path = os.environ["PR_BODY_ENRICHED"]
+
+        with open(body_path, "r", encoding="utf-8") as f:
+            body = f.read()
+        with open(details_path, "r", encoding="utf-8") as f:
+            insert = f.read().rstrip()
+
+        lower = body.lower()
+        idx = lower.rfind("</details>")
+        if idx != -1:
+            before = body[:idx].rstrip()
+            after = body[idx:]
+            new_body = f"{before}\n\n{insert}\n\n{after}"
+        else:
+            summary = "<details>\n<summary>Click to expand additional details:</summary>\n\n"
+            summary += insert + "\n\n</details>\n"
+            if body.strip():
+                new_body = body.rstrip() + "\n\n" + summary
+            else:
+                new_body = summary
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(new_body.strip() + "\n")
+        PY
+
+        mapfile -t changed_files < <(gh api "repos/${repo}/pulls/${pr_number}/files" --paginate --jq '.[].filename')
+        relevant_files=()
+        for file in "${changed_files[@]}"; do
+          [ -z "$file" ] && continue
+          lower=$(printf '%s' "$file" | tr '[:upper:]' '[:lower:]')
+          if [[ "$lower" == .github/* ]]; then
+            continue
+          fi
+          if [[ "$lower" == *.md ]]; then
+            continue
+          fi
+          relevant_files+=("$file")
+        done
+
+        if [ "${#relevant_files[@]}" -eq 0 ]; then
+          echo "Only .github/* or *.md changes detected; skipping log creation."
+          exit 0
+        fi
+
+        preferred_version_file="${{ inputs.version_file }}"
+        version_files=()
+
+        if [ -n "$preferred_version_file" ]; then
+          if [ -f "$preferred_version_file" ]; then
+            version_files+=("$preferred_version_file")
+          else
+            echo "Preferred version file '$preferred_version_file' not found; falling back to discovery."
+          fi
+        fi
+
+        if [ "${#version_files[@]}" -eq 0 ]; then
+          if [ -f "VERSION" ]; then
+            version_files=("VERSION")
+          else
+            for file in "${relevant_files[@]}"; do
+              dir=$(dirname "$file")
+              while [ "$dir" != "." ] && [ "$dir" != "/" ]; do
+                if [ -f "$dir/VERSION" ]; then
+                  version_files+=("$dir/VERSION")
+                fi
+                dir=$(dirname "$dir")
+              done
+            done
+          fi
+        fi
+
+        if [ "${#version_files[@]}" -eq 0 ]; then
+          echo "No VERSION files found for log creation."
+          exit 1
+        fi
+
+        mapfile -t version_files < <(printf '%s\n' "${version_files[@]}" | awk 'NF' | sort -u)
+
+        echo "VERSION files to log:"
+        printf ' - %s\n' "${version_files[@]}"
+
+        created_logs=()
+        for version_file in "${version_files[@]}"; do
+          current_version=$(tr -d '[:space:]' < "$version_file")
+          stripped_version="$current_version"
+          case "$stripped_version" in
+            v*|V*)
+              stripped_version="${stripped_version:1}"
+              ;;
+          esac
+          if ! [[ "$stripped_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format in $version_file: $current_version"
+            exit 1
+          fi
+
+          base_dir=$(dirname "$version_file")
+          logs_dir="$base_dir/logs"
+          if [ "$base_dir" = "." ]; then
+            logs_dir="logs"
+          fi
+          mkdir -p "$logs_dir"
+
+          log_path="$logs_dir/$current_version.md"
+          if [ -f "$log_path" ]; then
+            echo "Log already exists: $log_path"
+            continue
+          fi
+
+          {
+            echo "## $current_version"
+            release_tag="$current_version"
+            release_label="$current_version"
+            if [ "$base_dir" != "." ]; then
+              feature_slug=$(printf '%s' "$base_dir" | tr '[:upper:]' '[:lower:]' | tr '/\\' '-' | tr -c 'a-z0-9._-' '-' | tr -s '-')
+              feature_slug=${feature_slug#-}
+              feature_slug=${feature_slug%-}
+              if [ -z "$feature_slug" ]; then
+                feature_slug="feature"
+              fi
+              release_tag="${feature_slug}-${current_version}"
+              feature_title=$(printf '%s' "$base_dir" | sed 's|^\./||; s|/| / |g; s|\\\\| / |g; s|_| |g; s|-| |g')
+              feature_title=$(printf '%s' "$feature_title" | tr -s ' ')
+              release_label="${feature_title} ${current_version}"
+            fi
+            release_url="https://github.com/${repo}/releases/tag/${release_tag}"
+            echo ""
+            echo "**Release:** [${release_label}](${release_url})  "
+            echo "**PR:** [${pr_title} (#${pr_number})](${pr_url})  "
+            echo "**Labels:** ${pr_labels}"
+            echo ""
+            if [ -s "$pr_body_enriched" ]; then
+              cat "$pr_body_enriched"
+            fi
+            echo ""
+          } > "$log_path"
+
+          echo "Created log: $log_path"
+          created_logs+=("$log_path")
+        done
+
+        if [ "${#created_logs[@]}" -eq 0 ]; then
+          echo "No log changes to commit."
+          exit 0
+        fi
+
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add "${created_logs[@]}"
+
+        if git diff --cached --quiet; then
+          echo "No log changes to commit."
+          exit 0
+        fi
+
+        if [ "${#created_logs[@]}" -gt 1 ]; then
+          commit_message="ci: add logs"
+        else
+          commit_message="ci: add log"
+        fi

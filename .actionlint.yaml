@@ -1,0 +1,7 @@
+
+self-hosted-runner:
+  labels: []
+
+ignore:
+  - '"github\.event\.pull_request\.number" is potentially unsafe'
+  - '"github\.event\.pull_request\.(base|head)\.sha" is potentially unsafe'
