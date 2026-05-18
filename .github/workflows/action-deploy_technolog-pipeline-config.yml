@@ -39,8 +39,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
         with:
-          app-id: ${{ secrets.GNM_APP_ID }}
-          private-key: ${{ secrets.GNM_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.TPM_APP_ID }}
+          private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
       - name: Checkout Caller Repository
@@ -207,8 +207,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
         with:
-          app-id: ${{ secrets.GNM_APP_ID }}
-          private-key: ${{ secrets.GNM_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.TPM_APP_ID }}
+          private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
       - name: Checkout GitHub-Technolog-Pipeline-Repository

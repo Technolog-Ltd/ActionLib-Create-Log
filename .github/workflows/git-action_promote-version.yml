@@ -17,11 +17,11 @@ on:
       - '**/VERSION'
   workflow_call:
     secrets:
-      GNM_APP_ID:
+      TPM_APP_ID:
         required: true
-      GNM_APP_INSTALLATION_ID:
+      TPM_APP_INSTALLATION_ID:
         required: true
-      GNM_APP_PRIVATE_KEY:
+      TPM_APP_PRIVATE_KEY:
         required: true
 
 env:
@@ -42,9 +42,9 @@ jobs:
         id: app_token
         uses: Technolog-Ltd/ActionLib-Auth-App@v1.0.0
         with:
-          app-id: ${{ secrets.GNM_APP_ID }}
-          app-installation-id: ${{ secrets.GNM_APP_INSTALLATION_ID }}
-          app-private-key: ${{ secrets.GNM_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.TPM_APP_ID }}
+          app-installation-id: ${{ secrets.TPM_APP_INSTALLATION_ID }}
+          app-private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
       - name: Checkout Code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
@@ -169,9 +169,9 @@ jobs:
         id: app_token
         uses: Technolog-Ltd/ActionLib-Auth-App@v1.0.0
         with:
-          app-id: ${{ secrets.GNM_APP_ID }}
-          app-installation-id: ${{ secrets.GNM_APP_INSTALLATION_ID }}
-          app-private-key: ${{ secrets.GNM_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.TPM_APP_ID }}
+          app-installation-id: ${{ secrets.TPM_APP_INSTALLATION_ID }}
+          app-private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
       - name: Checkout Code
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
