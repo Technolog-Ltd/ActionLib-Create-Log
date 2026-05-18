@@ -233,13 +233,13 @@ jobs:
         env:
           TF_VAR_name: ${{ steps.resolve.outputs.repo_name }}
           TF_VAR_organization: ${{ steps.resolve.outputs.organization }}
-          TF_VAR_state_bucket_name: ${{ secrets.STATE_BUCKET_NAME }}
+          TF_VAR_state_bucket_name: ${{ vars.STATE_BUCKET_NAME }}
           TF_VAR_github_token: ${{ steps.app_token.outputs.token }}
         with:
           working-directory: module
           terraform-version: ${{ inputs.terraform_version }}
           init-args: >-
-            -backend-config="bucket=${{ secrets.STATE_BUCKET_NAME }}"
+            -backend-config="bucket=${{ vars.STATE_BUCKET_NAME }}"
             -backend-config="key=${{ steps.resolve.outputs.state_key }}"
             -backend-config="region=${{ steps.resolve.outputs.aws_region }}"
             -backend-config="encrypt=true"
@@ -252,13 +252,13 @@ jobs:
         env:
           TF_VAR_name: ${{ steps.resolve.outputs.repo_name }}
           TF_VAR_organization: ${{ steps.resolve.outputs.organization }}
-          TF_VAR_state_bucket_name: ${{ secrets.STATE_BUCKET_NAME }}
+          TF_VAR_state_bucket_name: ${{ vars.STATE_BUCKET_NAME }}
           TF_VAR_github_token: ${{ steps.app_token.outputs.token }}
         with:
           working-directory: module
           terraform-version: ${{ inputs.terraform_version }}
           init-args: >-
-            -backend-config="bucket=${{ secrets.STATE_BUCKET_NAME }}"
+            -backend-config="bucket=${{ vars.STATE_BUCKET_NAME }}"
             -backend-config="key=${{ steps.resolve.outputs.state_key }}"
             -backend-config="region=${{ steps.resolve.outputs.aws_region }}"
             -backend-config="encrypt=true"
