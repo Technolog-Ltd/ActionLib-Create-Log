@@ -61,7 +61,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.STATE_BUCKET_ACCOUNT }}:role/Terraform-State-Plan
+          role-to-assume: arn:aws:iam::${{ vars.STATE_BUCKET_ACCOUNT }}:role/Terraform-State-Plan
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure Git for Private Modules
@@ -76,7 +76,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! aws s3 cp "s3://${{ secrets.STATE_BUCKET_NAME }}/$${STATE_KEY}" /tmp/tf_state.json \
+          if ! aws s3 cp "s3://${{ vars.STATE_BUCKET_NAME }}/$${STATE_KEY}" /tmp/tf_state.json \
               --region "${{ env.AWS_REGION }}" 2>/dev/null; then
             echo "No state file found — nothing to clean up"
             exit 0
@@ -119,12 +119,12 @@ jobs:
 
           if [ -n "$${STATE_KMS_KEY}" ]; then
             aws s3 cp /tmp/tf_state_updated.json \
-              "s3://${{ secrets.STATE_BUCKET_NAME }}/$${STATE_KEY}" \
+              "s3://${{ vars.STATE_BUCKET_NAME }}/$${STATE_KEY}" \
               --region "${{ env.AWS_REGION }}" \
               --sse aws:kms --sse-kms-key-id "$${STATE_KMS_KEY}"
           else
             aws s3 cp /tmp/tf_state_updated.json \
-              "s3://${{ secrets.STATE_BUCKET_NAME }}/$${STATE_KEY}" \
+              "s3://${{ vars.STATE_BUCKET_NAME }}/$${STATE_KEY}" \
               --region "${{ env.AWS_REGION }}"
           fi
 
@@ -140,7 +140,7 @@ jobs:
           command: plan
           terraform-version: ${{ env.TERRAFORM_VERSION }}
           init-args: >-
-            -backend-config="bucket=${{ secrets.STATE_BUCKET_NAME }}"
+            -backend-config="bucket=${{ vars.STATE_BUCKET_NAME }}"
             -backend-config="key=state/repo/${{ github.repository_id }}/terraform.tfstate"
             -backend-config="kms_key_id=${{ secrets.STATE_KMS_KEY }}"
             -backend-config="region=${{ env.AWS_REGION }}"
@@ -149,7 +149,7 @@ jobs:
             -var-file="../caller/.github/repo_config.tfvars"
             -var='name=${{ github.event.repository.name }}'
             -var='organization=${{ github.repository_owner }}'
-            -var='state_bucket_name=${{ secrets.STATE_BUCKET_NAME }}'
+            -var='state_bucket_name=${{ vars.STATE_BUCKET_NAME }}'
           comment-on-pr: "false"
           emit-summary: "true"
           emit-raw-plan: "true"
@@ -227,7 +227,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.STATE_BUCKET_ACCOUNT }}:role/Terraform-State-Apply
+          role-to-assume: arn:aws:iam::${{ vars.STATE_BUCKET_ACCOUNT }}:role/Terraform-State-Apply
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure Git for Private Modules
@@ -243,7 +243,7 @@ jobs:
           command: apply
           terraform-version: ${{ env.TERRAFORM_VERSION }}
           init-args: >-
-            -backend-config="bucket=${{ secrets.STATE_BUCKET_NAME }}"
+            -backend-config="bucket=${{ vars.STATE_BUCKET_NAME }}"
             -backend-config="key=state/repo/${{ github.repository_id }}/terraform.tfstate"
             -backend-config="kms_key_id=${{ secrets.STATE_KMS_KEY }}"
             -backend-config="region=${{ env.AWS_REGION }}"
