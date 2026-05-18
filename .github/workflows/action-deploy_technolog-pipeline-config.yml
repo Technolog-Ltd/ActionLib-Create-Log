@@ -61,7 +61,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          role-to-assume: arn:aws:iam::${{ vars.STATE_BUCKET_ACCOUNT }}:role/Terraform-State-Plan
+          role-to-assume: arn:aws:iam::${{ vars.STATE_BUCKET_ACCOUNT }}:role/Terraform-Repo-Plan
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure Git for Private Modules
@@ -71,7 +71,7 @@ jobs:
       - name: Remove Stale Environment State
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          STATE_KEY: state/repo/${{ github.repository_id }}/terraform.tfstate
+          STATE_KEY: state/repository/${{ github.repository_id }}/terraform.tfstate
           STATE_KMS_KEY: ${{ secrets.STATE_KMS_KEY }}
         run: |
           set -euo pipefail
@@ -141,7 +141,7 @@ jobs:
           terraform-version: ${{ env.TERRAFORM_VERSION }}
           init-args: >-
             -backend-config="bucket=${{ vars.STATE_BUCKET_NAME }}"
-            -backend-config="key=state/repo/${{ github.repository_id }}/terraform.tfstate"
+            -backend-config="key=state/repository/${{ github.repository_id }}/terraform.tfstate"
             -backend-config="kms_key_id=${{ secrets.STATE_KMS_KEY }}"
             -backend-config="region=${{ env.AWS_REGION }}"
             -backend-config="encrypt=true"
@@ -227,7 +227,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a
         with:
-          role-to-assume: arn:aws:iam::${{ vars.STATE_BUCKET_ACCOUNT }}:role/Terraform-State-Apply
+          role-to-assume: arn:aws:iam::${{ vars.STATE_BUCKET_ACCOUNT }}:role/Terraform-Repo-Apply
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure Git for Private Modules
@@ -244,7 +244,7 @@ jobs:
           terraform-version: ${{ env.TERRAFORM_VERSION }}
           init-args: >-
             -backend-config="bucket=${{ vars.STATE_BUCKET_NAME }}"
-            -backend-config="key=state/repo/${{ github.repository_id }}/terraform.tfstate"
+            -backend-config="key=state/repository/${{ github.repository_id }}/terraform.tfstate"
             -backend-config="kms_key_id=${{ secrets.STATE_KMS_KEY }}"
             -backend-config="region=${{ env.AWS_REGION }}"
             -backend-config="encrypt=true"
