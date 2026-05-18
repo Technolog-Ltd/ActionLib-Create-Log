@@ -229,7 +229,7 @@ jobs:
           role-session-name: technolog-pipeline-repo-config
 
       - name: Terraform Plan
-        uses: Technolog-Ltd/ActionLib-Terraform-Control@v1.0.0
+        uses: Technolog-Ltd/ActionLib-Terraform-Control@main
         env:
           TF_VAR_name: ${{ steps.resolve.outputs.repo_name }}
           TF_VAR_organization: ${{ steps.resolve.outputs.organization }}
@@ -248,7 +248,7 @@ jobs:
 
       - name: Terraform Apply
         if: ${{ inputs.apply }}
-        uses: Technolog-Ltd/ActionLib-Terraform-Control@v1.0.0
+        uses: Technolog-Ltd/ActionLib-Terraform-Control@main
         env:
           TF_VAR_name: ${{ steps.resolve.outputs.repo_name }}
           TF_VAR_organization: ${{ steps.resolve.outputs.organization }}

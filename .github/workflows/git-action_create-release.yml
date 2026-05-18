@@ -337,7 +337,7 @@ jobs:
           echo "RELEASE_VERSION=${RELEASE_VERSION}" >> "$GITHUB_ENV"
 
       - name: Create Package
-        uses: Technolog-Ltd/ActionLib-Create-Package@v1.0.0
+        uses: Technolog-Ltd/ActionLib-Create-Package@main
         env:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           RELEASE_VERSION: ${{ needs.detect-release.outputs.release_version }}
@@ -387,7 +387,7 @@ jobs:
           echo "GITHUB_TOKEN=$token" >> "$GITHUB_ENV"
 
       - name: Create Release
-        uses: Technolog-Ltd/ActionLib-Create-Release@v1.0.0
+        uses: Technolog-Ltd/ActionLib-Create-Release@main
         env:
           GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
