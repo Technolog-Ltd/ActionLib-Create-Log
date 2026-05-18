@@ -132,7 +132,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        uses: Technolog-Ltd/ActionLib-Terraform-Control@v1.1.4
+        uses: Technolog-Ltd/ActionLib-Terraform-Control@main
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
@@ -235,7 +235,7 @@ jobs:
           git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
 
       - name: Terraform Apply
-        uses: Technolog-Ltd/ActionLib-Terraform-Control@v1.1.4
+        uses: Technolog-Ltd/ActionLib-Terraform-Control@main
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
