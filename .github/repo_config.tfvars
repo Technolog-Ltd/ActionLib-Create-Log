@@ -52,5 +52,5 @@ environments = {
 }
 
 import_resources = {
-  repository = "ActionLibrary-Create-Log"
+  repository = "ActionLib-Create-Log"
 }
