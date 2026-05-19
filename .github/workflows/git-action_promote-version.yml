@@ -19,8 +19,6 @@ on:
     secrets:
       TPM_APP_ID:
         required: true
-      TPM_APP_INSTALLATION_ID:
-        required: true
       TPM_APP_PRIVATE_KEY:
         required: true
 
@@ -40,18 +38,19 @@ jobs:
     steps:
       - name: Generate GitHub App Token
         id: app_token
-        uses: Technolog-Ltd/ActionLib-Auth-App@main
+        uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.TPM_APP_ID }}
-          app-installation-id: ${{ secrets.TPM_APP_INSTALLATION_ID }}
-          app-private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@v4
         with:
           token: ${{ steps.app_token.outputs.token }}
 
       - name: Discover PR Via Commit
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        uses: actions/github-script@v7
         id: lookup
         with:
           github-token: ${{ steps.app_token.outputs.token }}
@@ -96,6 +95,7 @@ jobs:
         shell: bash
         env:
           PR_NUMBER: ${{ steps.lookup.outputs.pr_number }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           set -euo pipefail
           version_files=()
@@ -167,15 +167,20 @@ jobs:
     steps:
       - name: Generate GitHub App Token
         id: app_token
-        uses: Technolog-Ltd/ActionLib-Auth-App@main
+        uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.TPM_APP_ID }}
-          app-installation-id: ${{ secrets.TPM_APP_INSTALLATION_ID }}
-          app-private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
+          private-key: ${{ secrets.TPM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
       - name: Checkout Code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@v4
         with:
           token: ${{ steps.app_token.outputs.token }}
+
+      - name: Export GH_TOKEN
+        shell: bash
+        run: echo "GH_TOKEN=${{ steps.app_token.outputs.token }}" >> "$GITHUB_ENV"
 
       - name: Create Automation Branch
         id: branch
@@ -261,3 +266,5 @@ jobs:
             if [ "${MERGE_ADMIN}" = "true" ]; then
               merge_args+=("--admin")
             fi
+            gh pr merge "$pr_number" "${merge_args[@]}"
+          fi
